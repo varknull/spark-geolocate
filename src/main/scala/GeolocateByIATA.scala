@@ -15,7 +15,7 @@ object GeolocateByIATA {
   def main(args: Array[String]) {
     var path_prefix = ""
     if (args.length == 1) {
-      path_prefix = args.toList(0)
+      path_prefix = args(0)
     }
 
     //Create a SparkContext to initialize Spark
