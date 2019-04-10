@@ -1,71 +1,25 @@
-# travel audience Data Engineer Challenge
+# Spark-geolocate example
 
-## The Objective
+## Implementation
 
-We have a list of tracking signals containing the approximate geolocation of users on internet. To help us show them the right ads, we want to know which airport they are closest to.
+I decided to implement this project using Spark with Scala as it translated well with the requirements of parsing csv data
+and keeping the application scalable.
 
-## Data-sets
+For this prototype we are just running the application on a single master node locally but it could be easily scaled over a cluster thanks to Spark.
 
-You will be provided with two sample data sets to consume:
+The main challange of this task was computing the closest `IATA code` in a reasonable amount of time.
+Since we are forced to do this computation for every event and the list of `optd-sample-20161201.csv.gz` is fairly big, a brute force approach
+would have a O(n*m) complexity and it results in a very slow computation over big amounts of data.
 
-* `optd-sample-20161201.csv.gz` - A simplified version of a data set from Open Travel Data, containing geo-coordinates of major airports:
-    * IATA airport code - a three-character identifier of global airports (first column)
-    * Latitude and Longitude in floating point format (second and third columns, respectively)
+Thus I focused on a strategy to optimise the geodistance calculation. One option could have been using some clustering algorithm (like dbscan)
+to reduce the coordinates but I couldn't find any good library for that in scala. So I end up implementing my own k-d tree 
+data structure instead (quite a challenge in Scala :)), which organize our geo-coordinates  in a binary tree and 
+it's very useful to perform a nearest neighbor search in O(log n). This improved a lot execution time. 
+ 
+The application is reading all the data at once, processing it and writing the result in a CSV. 
+In a real world scenario we would probably want to stream events from a kafka cluster or process a batched amount of events per second.
+This goal could be easily reached with Spark streaming.
 
-* `sample_data.csv.gz` - Some sample input data for your application, containing:
-    * A universally unique identifier (uuid) which acts as a user-id for some end-user (first column)
-    * Latitude and Longitude in floating point format (second and third columns, respectively)
-    * Each row of the CSV can be considered as a single user tracking event.
+## Running
 
-## Task.
-
-Your application will need to do the following:
-  
-* Parse an input data-source containing events with the same fields as in the sample csv: user-id and geo-coordinates.
-
-* Geodistance calculation: Take the users's coordinates and compare this with the set of airport coordinates to get the IATA code with the closest geodistance to the user.
-
-* For each input event, your application is expected to output one event containing two fields: user-id and an IATA code corresponding to the closest airport.
-
-* Your application must be scalable. In a real-world scenario, we might get hundreds or even thousands of such events per second.
-
-## Deliverables 
-
-The purpose of this task is to provide code which satisfies the task above whilst at the same time demonstrating your coding style as well as your design and engineering skills.
-
-Your code should be a production-grade prototype and you should be able to defend your approach and be able to discuss any limitations/trade-offs you have made in your design.
-
-## Environment
-
-You have a free hand in choosing the environment in which this code is developed and demonstrated.
-
-## Languages
-
-Must be in Scala.
-
-## Licensing 
-
-* `sample_data.csv.gz`
-
-The longitude, latitude data in this sample was taken from a data-set provided
-by Maxmind inc.
-
-This work is licensed under the Creative Commons
-Attribution-ShareAlike 4.0 International License. To view a copy of
-this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
-
-This database incorporates GeoNames [http://www.geonames.org]
-geographical data, which is made available under the Creative Commons
-Attribution 3.0 License. To view a copy of this license, visit
-http://www.creativecommons.org/licenses/by/3.0/us/.
-
-* `optd-sample-20161201.csv.gz`
-
-Licensed under Creative Commons - for more information see 
-https://github.com/opentraveldata/optd/blob/trunk/LICENSE
-
-* All other data
-
-All other data in this repository is Copyright travel audience GmbH. 
-
-
+Can be run dockerized through `run.sh` or directly on Spark
