@@ -2,7 +2,7 @@ FROM java:openjdk-8
 
 ENV HADOOP_HOME /opt/spark/hadoop-2.7.1
 ENV SBT_VERSION 1.2.8
-ENV SCALA_VERSION 2.12.8
+ENV SCALA_VERSION 2.11.8
 
 #RUN mkdir /opt/spark
 #WORKDIR /opt/spark

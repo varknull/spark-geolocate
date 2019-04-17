@@ -1,15 +1,14 @@
-import kdtree.KDTree
 import org.apache.spark.SparkConf
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
-
+import com.sizmek.rtree2d.core._
+import EuclideanPlane._
 
 object GeolocateByIATA {
 
-  def findClosest(lat: Double, long: Double, tree: Broadcast[KDTree]): String = {
-    val nearests = tree.value.searchKNeighbors(lat, long ,1)
-    nearests(0).data
+  def findClosest(lat: Float, long: Float, tree: RTree[String]): String = {
+    val nearest = tree.nearestK(lat, long, k=1)
+    nearest(0).value
   }
 
   def main(args: Array[String]) {
@@ -30,23 +29,22 @@ object GeolocateByIATA {
       .config(conf)
       .getOrCreate()
 
-    val dfOptd = spark.read
+    // get coordinates as Array[entry] to build the Rtree
+    val coordinates = spark.read
       .option("header", "true")
       .csv(path_prefix+"sample_data/optd-sample-20161201.csv.gz")
       .collect()
+      .map(r => entry(r.getString(1).toFloat, r.getString(2).toFloat, r.getString(0)))
 
-    val kdtree = new KDTree()
-    dfOptd.foreach(r => {
-      kdtree.insert(r.getString(1).toDouble, r.getString(2).toDouble, r.getString(0))
-    })
-    val optdBroadcast = spark.sparkContext.broadcast(kdtree)
+    // to broadcast the tree
+    val rtreeBroadcast = spark.sparkContext.broadcast(RTree(coordinates))
 
     val dfData = spark
       .read
       .option("header", "true")
       .csv(path_prefix+"sample_data/source/")
 
-    val findClosestIata = udf((lat: Double, long: Double) => findClosest(lat, long, optdBroadcast))
+    val findClosestIata = udf((lat: Float, long: Float) => findClosest(lat, long, rtreeBroadcast.value))
 
     dfData
       .withColumn("iata_code", findClosestIata(dfData("geoip_latitude"), dfData("geoip_latitude")))
